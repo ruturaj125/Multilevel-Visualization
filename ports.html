@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<!--
+      Copyright 2022 University of California, Riverside
+
+      Licensed under the Apache License, Version 2.0 (the "License");
+      you may not use this file except in compliance with the License.
+      You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+      Unless required by applicable law or agreed to in writing, software
+      distributed under the License is distributed on an "AS IS" BASIS,
+      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+      See the License for the specific language governing permissions and
+      limitations under the License.
+      -->
+<!-- Based on the examples at
+https://openlayers.org/en/latest/doc/quickstart.html
+https://openlayers.org/en/latest/examples/xyz.html and
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Point Visualization</title>
+  <!-- Open Layers -->
+  <script src="ol.js"></script>
+  <script src="https://cdn.polyfill.io/v2/polyfill.min.js?features=requestAnimationFrame,Element.prototype.classList,URL"></script>
+  <link rel="stylesheet" href="ol.css">
+  <!-- Adding references to popup layer-->
+  <script src="https://unpkg.com/ol-popup@4.0.0"></script>
+  <link rel="stylesheet" href="https://unpkg.com/ol-popup@4.0.0/src/ol-popup.css" />
+  <style>
+    html, body, #map {
+      height: 100%;
+      margin: 0px;
+      padding: 0px
+    }
+  </style>
+</head>
+<body>
+<div id="map" class="map"></div>
+<script>
+var mercator = false;
+var mapLayers = [];
+if (mercator) {
+  // Add an OSM base layer if Mercator projection is used
+  mapLayers.push(new ol.layer.Tile({source: new ol.source.OSM() }));
+}
+const country = new ol.style.Style({
+  stroke: new ol.style.Stroke({
+    color: 'gray',
+    width: 1,
+  }),
+  fill: new ol.style.Fill({
+    color: 'rgba(200,20,20,0.9)',
+  }),
+  image: new ol.style.Circle({
+    radius: 5,
+    fill: new ol.style.Fill({
+        color: 'rgba(255,255,255,0.4)'
+    }),
+  }),
+});
+
+const selectedCountry = new ol.style.Style({
+  stroke: new ol.style.Stroke({
+    color: 'rgba(200,20,20,0.8)',
+    width: 5,
+  }),
+  fill: new ol.style.Fill({
+    color: 'rgba(200,20,20,0.4)',
+  }),
+  image: new ol.style.Circle({
+    radius: 2,
+    fill: new ol.style.Fill({
+        color: 'rgba(200,0,0,1.0)'
+    }),
+  }),
+});
+
+// Add the customized map layer
+var selection;
+var vtlayer;
+mapLayers.push(vtlayer = new ol.layer.VectorTile({
+  source: new ol.source.VectorTile({
+    url: 'NE_portsNew-{z}-{x}-{y}.mvt',
+    maxZoom: 3,
+    format: new ol.format.MVT(/*{idProperty: 'iso_a3'}*/)
+  }),
+  style: function (feature) {
+    const property = feature.getProperties();
+    const population = property.POP_EST;
+    console.log(feature);
+    if (feature.getId() == selection)
+      return selectedCountry;
+    return country;
+  }
+}));
+var map = new ol.Map({
+  target: 'map',
+  layers: mapLayers,
+  view: new ol.View({
+    // Center the initial view at a specific longitude and latitude
+    center: ol.proj.fromLonLat([0, 0]),
+    zoom: 3
+  })
+});
+
+map.on(['click'], function (event) {
+  vtlayer.getFeatures(event.pixel).then(function (features) {
+    if (!features.length) {
+      selection = 0;
+      vtlayer.changed();
+      return;
+    }
+    const feature = features[0];
+    if (!feature) {
+      return;
+    }
+    const property = feature.getProperties();
+    const population = property.POP_EST;
+    selection = feature.getId();
+    vtlayer.changed();
+  });
+});
+</script>
+</body>
+</html>
